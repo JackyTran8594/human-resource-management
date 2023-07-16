@@ -37,8 +37,7 @@ public class RabbitMqConfig {
 
     @Bean
     public AmqpAdmin amqpAdmin() {
-        RabbitAdmin rabbitAdmin
-                = new RabbitAdmin(connectionFactory());
+        RabbitAdmin rabbitAdmin = new RabbitAdmin(connectionFactory());
         rabbitAdmin.setIgnoreDeclarationExceptions(true);
         return rabbitAdmin;
     }
@@ -50,23 +49,23 @@ public class RabbitMqConfig {
         return rabbitTemplate;
     }
 
-//    @Bean
-//    public AsyncRabbitTemplate asyncRabbitTemplate(RabbitTemplate rabbitTemplate){
-//        rabbitTemplate = new RabbitTemplate(connectionFactory());
-//        rabbitTemplate.setMessageConverter(jsonMessageConverter());
-//        return new AsyncRabbitTemplate(rabbitTemplate);
-//    }
-
+    // @Bean
+    // public AsyncRabbitTemplate asyncRabbitTemplate(RabbitTemplate
+    // rabbitTemplate){
+    // rabbitTemplate = new RabbitTemplate(connectionFactory());
+    // rabbitTemplate.setMessageConverter(jsonMessageConverter());
+    // return new AsyncRabbitTemplate(rabbitTemplate);
+    // }
 
     @Bean(name = "rabbitListenerContainerFactory")
     public SimpleRabbitListenerContainerFactory simpleRabbitListenerContainerFactory() {
-       SimpleRabbitListenerContainerFactory factory = new SimpleRabbitListenerContainerFactory();
-       factory.setConnectionFactory(connectionFactory());
-       factory.setMessageConverter(jsonMessageConverter());
+        SimpleRabbitListenerContainerFactory factory = new SimpleRabbitListenerContainerFactory();
+        factory.setConnectionFactory(connectionFactory());
+        factory.setMessageConverter(jsonMessageConverter());
 
         factory.setConcurrentConsumers(3);
         factory.setMaxConcurrentConsumers(10);
-       return factory;
+        return factory;
     }
 
     @Bean
@@ -80,34 +79,33 @@ public class RabbitMqConfig {
         return new MessageListenerAdapter(receiver, "receiveMessage");
     }
 
-
     // sender
 
-//    @Bean
-//    public DirectExchange directExchange() {
-//        return new DirectExchange(environment.getProperty("spring.rabbitmq.exchange"));
-//    }
+    @Bean
+    public DirectExchange directExchange() {
+        return new DirectExchange(environment.getProperty("spring.rabbitmq.exchange"));
+    }
 
     @Bean
     public Queue queue() {
         return new Queue(environment.getProperty("spring.rabbitmq.queue"));
     }
 
-
     @Bean
     public Binding binding() {
-//        return BindingBuilder.bind(queue()).to(directExchange()).with(environment.getProperty("spring.rabbitmq.routingkey"));
-        return BindingBuilder.bind(queue()).to(directExchangeReceived()).with(environment.getProperty("spring.rabbitmq.routingkey"));
+        return BindingBuilder.bind(queue()).to(directExchange())
+                .with(environment.getProperty("spring.rabbitmq.routingkey"));
+        // return
+        // BindingBuilder.bind(queue()).to(directExchangeReceived()).with(environment.getProperty("spring.rabbitmq.routingkey"));
     }
     // sender
 
-
     // receiver
 
-    @Bean
-    public DirectExchange directExchangeReceived() {
-        return new DirectExchange(environment.getProperty("spring.rabbitmq.exchange-received"));
-    }
+    // @Bean
+    // public DirectExchange directExchangeReceived() {
+    //     return new DirectExchange(environment.getProperty("spring.rabbitmq.exchange-received"));
+    // }
 
     @Bean
     public Queue queueReceivedHuman() {
@@ -116,7 +114,10 @@ public class RabbitMqConfig {
 
     @Bean
     public Binding bindingReceivedHuman() {
-        return BindingBuilder.bind(queueReceivedHuman()).to(directExchangeReceived()).with(environment.getProperty("spring.rabbitmq.routingkey-human"));
+        // return BindingBuilder.bind(queueReceivedHuman()).to(directExchangeReceived()).with(environment.getProperty("spring.rabbitmq.routingkey-human"));
+        return BindingBuilder.bind(queueReceivedHuman()).to(directExchange())
+                .with(environment.getProperty("spring.rabbitmq.routingkey-human"));
+
     }
     // receiver
 

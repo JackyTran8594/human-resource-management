@@ -18,8 +18,16 @@ public class RabbitMqSender {
 
     @Value("${spring.rabbitmq.routingkey:#{null}}")
     private String routingkey;
+    
+
+    @Value("${spring.rabbitmq.routingkey-human:#{null}}")
+    private String routingkeyHuman;
 
     public void sender(UserDTO user) {
+        rabbitTemplate.convertAndSend(exchange, routingkeyHuman, user);
+    }
+
+    public void senderToGateway(UserDTO user) {
         rabbitTemplate.convertAndSend(exchange, routingkey, user);
     }
 
