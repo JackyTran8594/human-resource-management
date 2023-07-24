@@ -16,17 +16,21 @@ import org.slf4j.LoggerFactory;
 import org.springframework.amqp.AmqpException;
 import org.springframework.amqp.core.AmqpTemplate;
 import org.springframework.amqp.core.Message;
+import org.springframework.amqp.core.MessageBuilder;
 import org.springframework.amqp.core.MessagePostProcessor;
 import org.springframework.amqp.core.MessageProperties;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.amqp.rabbit.annotation.RabbitListenerConfigurer;
 import org.springframework.amqp.rabbit.connection.CorrelationData;
 import org.springframework.amqp.rabbit.listener.RabbitListenerEndpointRegistrar;
+import org.springframework.amqp.support.AmqpHeaders;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Component;
+import org.springframework.util.SerializationUtils;
 
 @Slf4j
 @Component
@@ -58,55 +62,51 @@ public class RabbitMqReceiver implements RabbitListenerConfigurer {
     @Value("${spring.rabbitmq.routingkey-human:#{null}}")
     private String routingkeyHuman;
 
-    public UserDTO userDTO = new UserDTO();
-
-    public String username = "";
-
-    // @RabbitListener(queues = "${spring.rabbitmq.queue}")
-    // public void receivedMessage(UserDTO user) {
-    // logger.info("User Details Received is.. " + user.getUsername());
-    // userDTO = user;
-    // }
 
     @RabbitListener(queues = "${spring.rabbitmq.queue-human}")
-    public void receivedMessageFromGateway(UserDTO item, Message message) {
+    public void receivedMessageFromGateway(
+            @Header(value = AmqpHeaders.REPLY_TO, required = false) String senderId,
+            @Header(value = AmqpHeaders.CORRELATION_ID, required = false) String correlationId,
+            @Header(value = "typeRequest", required = false) String type,
+            String username) {
 
         try {
 
+            UserDTO userDTO = new UserDTO();
+            if (senderId != null && correlationId != null) {
 
-            MessagePostProcessor messagePostProcessor = new MessagePostProcessor() {
+                if (type.equals(TypeRequestEnum.INSERT.getName())) {
+                    // creating if user isn't exist in db
+                    logger.warn("User not found with username ----> create in db",
+                            username);
+                    userDTO.setStatus("ACTIVE");
+                    userDTO.setUsername(username);
+                    userDTO = userService.save(userDTO);
+                    rabbitTemplate.convertAndSend(senderId, objectMapper.writeValueAsString(userDTO),
+                            message -> {
+                                MessageProperties properties = message.getMessageProperties();
+                                properties.setCorrelationId(correlationId);
+                                return message;
+                            });
 
-                @Override
-                public Message postProcessMessage(Message mess) throws AmqpException {
-                    // TODO Auto-generated method stub
-                    MessageProperties messageProperties =  mess.getMessageProperties();
-                    messageProperties.setCorrelationId(message.getMessageProperties().getCorrelationId().toString());
-                    return message;
                 }
-                
-            };
-
-            UserDTO user = new UserDTO();
-            if (item.getTypeRequest().equals(TypeRequestEnum.INSERT.getName())) {
-                // creating if user isn't exist in db
-                log.warn("User not found with username ----> create in db",
-                        item.getUsername());
-                item.setStatus("ACTIVE");
-                user = userService.save(item);
-                rabbitTemplate.convertAndSend(exchange, routingkey, user, messagePostProcessor);
-
-            }
-            if (item.getTypeRequest().equals(TypeRequestEnum.VIEW.getName())) {
-                // creating if user isn't exist in db
-                user = userService.findByUsername(item);
-                if (!DataUtils.isNullOrEmpty(user)) {
-                    if (!"ACTIVE".equalsIgnoreCase(user.getStatus())) {
-                        throw new UsernameNotFoundException("User not found with username: ");
+                if (type.equals(TypeRequestEnum.VIEW.getName())) {
+                    // creating if user isn't exist in db
+                    userDTO = userService.findByUsername(username);
+                    if (!DataUtils.isNullOrEmpty(userDTO)) {
+                        if (!"ACTIVE".equalsIgnoreCase(userDTO.getStatus())) {
+                            throw new UsernameNotFoundException("User not found with username: ");
+                        }
+                        logger.info("-----VIEW:" + username);
+                        rabbitTemplate.convertAndSend(senderId, objectMapper.writeValueAsString(userDTO),
+                            message -> {
+                                MessageProperties properties = message.getMessageProperties();
+                                properties.setCorrelationId(correlationId);
+                                return message;
+                            });
                     }
-
-                    rabbitTemplate.convertAndSend(exchange, routingkey, user, messagePostProcessor);
-                    // rabbitTemplate.convertSendAndReceive(exchange, routingkeyHuman, user);
                 }
+               
             }
 
         } catch (Exception ex) {
@@ -115,41 +115,21 @@ public class RabbitMqReceiver implements RabbitListenerConfigurer {
 
     }
 
-    @RabbitListener(queues = "${spring.rabbitmq.queue}")
-    public void receiveMessageTest(String json) {
-        logger.info("HUMAN SERVICE Received is.. " + json);
-    }
-
     // @RabbitListener(queues = "${spring.rabbitmq.queue-human}")
-    // public UserDTO receivedMessageFromGateway(UserDTO item) {
-    // try {
-    // UserDTO user = new UserDTO();
-    // if (item.getTypeRequest().equals(TypeRequestEnum.INSERT.getName())) {
-    // // creating if user isn't exist in db
-    // log.warn("User not found with username ----> create in db",
-    // item.getUsername());
-    // item.setStatus("ACTIVE");
-    // user = userService.save(item);
-    // // rabbitTemplate.convertAndSend(exchange, routingkey, user);
-    // }
-    // if (item.getTypeRequest().equals(TypeRequestEnum.VIEW.getName())) {
-    // // creating if user isn't exist in db
-    // user = userService.findByUsername(item);
-    // if (!DataUtils.isNullOrEmpty(user)) {
-    // if (!"ACTIVE".equalsIgnoreCase(user.getStatus())) {
-    // throw new UsernameNotFoundException("User not found with username: ");
-    // }
+    // public void receiveMessageTest(
+    //         @Header(value = AmqpHeaders.REPLY_TO, required = false) String senderId,
+    //         @Header(value = AmqpHeaders.CORRELATION_ID, required = false) String correlationId,
+    //         String requestMessage) {
+    //     logger.info("HUMAN SERVICE Received is.. " + requestMessage);
 
-    // // rabbitTemplate.convertAndSend(exchange, routingkey, user);
-    // }
-    // }
-
-    // return user;
-
-    // } catch (Exception ex) {
-    // logger.error(ex.getMessage(), ex);
-    // return null;
-    // }
+    //     if (senderId != null && correlationId != null) {
+    //         String success = "Success";
+    //         rabbitTemplate.convertAndSend(senderId, success, message -> {
+    //             MessageProperties properties = message.getMessageProperties();
+    //             properties.setCorrelationId(correlationId);
+    //             return message;
+    //         });
+    //     }
 
     // }
 

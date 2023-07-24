@@ -61,9 +61,9 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public UserDTO findByUsername(UserDTO item) {
-        if (DataUtils.notNull(item)) {
-            UserEntity entity = repository.findByUsername(item.getUsername());
+    public UserDTO findByUsername(String username) {
+        if (DataUtils.notNull(username)) {
+            UserEntity entity = repository.findByUsername(username);
             if (DataUtils.notNull(entity)) {
                 return mapper.toDtoBean(entity);
             }

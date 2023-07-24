@@ -62,7 +62,6 @@ public class RabbitMqConfig {
         SimpleRabbitListenerContainerFactory factory = new SimpleRabbitListenerContainerFactory();
         factory.setConnectionFactory(connectionFactory());
         factory.setMessageConverter(jsonMessageConverter());
-
         factory.setConcurrentConsumers(3);
         factory.setMaxConcurrentConsumers(10);
         return factory;
@@ -70,8 +69,10 @@ public class RabbitMqConfig {
 
     @Bean
     public Jackson2JsonMessageConverter jsonMessageConverter() {
-        ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
+        // ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
+        ObjectMapper objectMapper = new ObjectMapper();
         return new Jackson2JsonMessageConverter(objectMapper);
+        // return new Jackson2JsonMessageConverter();
     }
 
     @Bean
@@ -104,7 +105,8 @@ public class RabbitMqConfig {
 
     // @Bean
     // public DirectExchange directExchangeReceived() {
-    //     return new DirectExchange(environment.getProperty("spring.rabbitmq.exchange-received"));
+    // return new
+    // DirectExchange(environment.getProperty("spring.rabbitmq.exchange-received"));
     // }
 
     @Bean
@@ -114,7 +116,8 @@ public class RabbitMqConfig {
 
     @Bean
     public Binding bindingReceivedHuman() {
-        // return BindingBuilder.bind(queueReceivedHuman()).to(directExchangeReceived()).with(environment.getProperty("spring.rabbitmq.routingkey-human"));
+        // return
+        // BindingBuilder.bind(queueReceivedHuman()).to(directExchangeReceived()).with(environment.getProperty("spring.rabbitmq.routingkey-human"));
         return BindingBuilder.bind(queueReceivedHuman()).to(directExchange())
                 .with(environment.getProperty("spring.rabbitmq.routingkey-human"));
 

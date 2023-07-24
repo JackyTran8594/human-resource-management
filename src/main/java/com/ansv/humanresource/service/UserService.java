@@ -13,7 +13,7 @@ public interface UserService {
 
     UserDTO save(UserDTO item);
 
-    UserDTO findByUsername(UserDTO item);
+    UserDTO findByUsername(String username);
 
     List<UserDTO> findAll();
 
